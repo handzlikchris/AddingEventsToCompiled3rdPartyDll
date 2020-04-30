@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CommandLine;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -283,35 +284,75 @@ namespace Console
         }
     }
 
+    [Verb("add-events", HelpText = "Weave IL instructions to library")]
+    class AddEventsOptions
+    {
+        [Option('t',"target-dll-path", Required = true,
+            HelpText = @"Location of Unity DLL that will be rewritten, this is usually 
+        'C:\Program Files\Unity\Hub\Editor\<version>\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll'")]
+        public string TargetDllPath { get; set; }
+    }
+
+    [Verb("revert-to-original", HelpText = "Revert to original library.")]
+    class RevertToOriginalOptions
+    {
+        
+    }
+
+    public class Options
+    {
+
+    }
+
     class Program
     {
         private static IlEventGenerator _ilEventGenerator;
         private static IlEventHookManager _ilEventManager;
 
         //TODO: must come from params
-        const string UnityCoreNonDevReleaseDll = @"C:\Program Files\Unity\Hub\Editor\2019.3.0f6\Editor\Data\PlaybackEngines\windowsstandalonesupport\Variations\mono\Managed\UnityEngine.CoreModule.dll";
-        const string UnityCoreBuildDll = @"F:\_src\!Archive\!Unity\MissingUnityEvents\Build\MissingUnityEvents_Data\Managed\UnityEngine.CoreModule.dll";
-        const string UnityCoreModule = @"C:\Program Files\Unity\Hub\Editor\2019.3.0f6\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll";
-        const string UseDll = UnityCoreModule;
+        //const string UnityCoreNonDevReleaseDll = @"C:\Program Files\Unity\Hub\Editor\2019.3.0f6\Editor\Data\PlaybackEngines\windowsstandalonesupport\Variations\mono\Managed\UnityEngine.CoreModule.dll";
+        //const string UnityCoreBuildDll = @"F:\_src\!Archive\!Unity\MissingUnityEvents\Build\MissingUnityEvents_Data\Managed\UnityEngine.CoreModule.dll";
+        //const string UnityCoreModule = @"C:\Program Files\Unity\Hub\Editor\2019.3.0f6\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll";
+        //const string UseDll = UnityCoreModule;
 
         public static string GenerateDefaultSetPropertyEventName(string propertyName) =>
             $"Set{char.ToUpper(propertyName[0]) + propertyName.Substring(1)}Executing";
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            CopyOriginal();
-            
-            using (var assembly = AssemblyDefinition.ReadAssembly(UseDll, new ReaderParameters { ReadWrite = true }))
+            return Parser.Default.ParseArguments<AddEventsOptions, RevertToOriginalOptions>(args)
+                .MapResult(
+                    (AddEventsOptions opts) => RunAddEvents(opts),
+                    (RevertToOriginalOptions opts) => RunRevertToOriginal(opts),
+                    errs => 1);
+        }
+
+        private static int RunAddEvents(AddEventsOptions options)
+        {
+            if (!CreateCleanCopyFromBackup(options.TargetDllPath))
+            {
+                System.Console.WriteLine($"Unable to {nameof(CreateCleanCopyFromBackup)}, exiting...");
+                return 1;
+            }
+
+            using (var assembly = AssemblyDefinition.ReadAssembly(options.TargetDllPath, new ReaderParameters { ReadWrite = true }))
             {
                 _ilEventGenerator = new IlEventGenerator(assembly);
                 _ilEventManager = new IlEventHookManager(assembly);
 
                 CreateEventAndWeaveCallAtSetterStart("Transform", "position", "Vector3");
                 CreateEventAndWeaveCallAtSetterStart("Transform", "localScale", "Vector3");
+                CreateEventAndWeaveCallAtSetterStart("Transform", "rotation", "Quaternion");
 
                 assembly.Write();
             }
 
+            return 0;
+        }
+
+        private static int RunRevertToOriginal(RevertToOriginalOptions options)
+        {
+            return 0;
         }
 
         private static void CreateEventAndWeaveCallAtSetterStart(string typeName, string propName, string propTypeName)
@@ -322,13 +363,46 @@ namespace Console
         }
 
 
-        private static void CopyOriginal()
+        private static bool CreateCleanCopyFromBackup(string dllPath)
         {
-            var original = $@"{UseDll}.original";
+            bool retry;
+            do
+            {
+                try
+                {
+                    var backup = $@"{dllPath}.backup";
+                    if (!File.Exists(backup))
+                    {
+                        System.Console.WriteLine("Backup does not exist, creating");
+                        File.Copy(dllPath, backup);
+                        System.Console.WriteLine($"Backup created: '{backup}'");
+                    }
 
-            if (File.Exists(UseDll)) File.Delete(UseDll);
+                    if (File.Exists(dllPath)) File.Delete(dllPath);
 
-            File.Copy(original, UseDll);
+                    File.Copy(backup, dllPath);
+
+                    retry = false;
+                }
+                catch (UnauthorizedAccessException e)
+                {
+                    System.Console.WriteLine("Unable to modify dll, make sure you run the application as administrator and close all applications that use library.");
+
+                    System.Console.Write("\r\nRetry? [y]es, any other key for no\t: ");
+                    var key = System.Console.ReadKey().Key;
+                    System.Console.WriteLine();
+                    if (key == ConsoleKey.Y)
+                    {
+                        retry = true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            } while (retry);
+
+            return true;
         }
     }
 }

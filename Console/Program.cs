@@ -16,6 +16,17 @@ using Scriban.Runtime;
 
 namespace Console
 {
+    public class HookPropertySetResult
+    {
+        public bool IsSuccess => String.IsNullOrEmpty(ErrorMessage);
+        public string ErrorMessage { get; }
+
+        public HookPropertySetResult(string errorMessage)
+        {
+            ErrorMessage = errorMessage;
+        }
+    }
+
     public class IlEventHookManager
     {
         private readonly AssemblyDefinition _assembly;
@@ -28,9 +39,13 @@ namespace Console
         }
 
 
-        public void HookPropertySet(GenerateEventResult generateEventResult, string addToType, string propertyName)
+        public HookPropertySetResult HookPropertySet(GenerateEventResult generateEventResult, string addToType, string propertyName)
         {
             var addEventToType = _module.Types.Single(t => t.Name == addToType);
+            if (addEventToType.Events.Any(ev => ev.Name == generateEventResult.EventDefinition.Name))
+            {
+                return new HookPropertySetResult($"'{generateEventResult.EventDefinition.FullName}' already existing in type '{addToType}', skipping...");
+            }
 
             addEventToType.Fields.Add(generateEventResult.FieldDefinition);
             addEventToType.Methods.Add(generateEventResult.EventDefinition.AddMethod);
@@ -40,6 +55,8 @@ namespace Console
 
             InjectEventCallAtPropertySetterStart(propertyName, addEventToType, generateEventResult);
             System.Console.WriteLine($"Event: {generateEventResult.EventDefinition.Name} will be called on start property-setter '{addEventToType.Name}:{propertyName}'");
+
+            return new HookPropertySetResult(null);
         }
 
         private void InjectEventCallAtPropertySetterStart(string propertyName, TypeDefinition addEventToType, GenerateEventResult generateEventResult)
@@ -322,18 +339,18 @@ namespace Console
     [Verb("add-events", HelpText = "Weave IL instructions to library")]
     class AddEventsOptions
     {
-        private const string TargetDefinitionHelpText = @"Weaving target definitions in form: ObjectTypeName-PropertyName-PropertyTypeName, delimited with ':' for multiple values, 
-eg. 'Transform-position-Vector3:Transform-rotation-Quaternion'";
+        public const char MultipleDelimiter = ';';
 
-        public const string TargetDllPathHelpText = @"Location of Unity DLL that will be rewritten, this is usually 
-        'C:\Program Files\Unity\Hub\Editor\<version>\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll'";
+        private const string TargetDefinitionHelpText = "Weaving target definitions in form: ObjectTypeName-PropertyName-PropertyTypeName, " +
+                                                        "delimited with ';' for multiple values, eg. 'Transform-position-Vector3;Transform-rotation-Quaternion'";
+        public const string TargetDllPathHelpText = "Location of DLL that will be rewritten, multiple paths delimited with ;'";
 
         private IEnumerable<string> _targetDefinitionsRaw;
 
-        [Option('t',"target-dll-path", Required = true, HelpText = TargetDllPathHelpText)]
-        public string TargetDllPath { get; set; }
+        [Option('t',"target-dll-paths", Separator = MultipleDelimiter, Required = true, HelpText = TargetDllPathHelpText)]
+        public IEnumerable<string> TargetDllPaths { get; set; }
 
-        [Option("target-definitions", Required = true, Separator = ':', HelpText = TargetDefinitionHelpText)]
+        [Option("target-definitions", Required = true, Separator = MultipleDelimiter, HelpText = TargetDefinitionHelpText)]
         public IEnumerable<string> TargetDefinitionsRaw
         {
             get => _targetDefinitionsRaw;
@@ -348,6 +365,10 @@ eg. 'Transform-position-Vector3:Transform-rotation-Quaternion'";
         }
 
         public List<TargetDefinition> TargetDefinitions { get; set; }
+
+
+        //[Option("additional-file-paths-to-clone-dll", Required = false, Separator = ':', HelpText = "Resulting DLL might need to be copied to other places that should use it, delimited with ':'")]
+        //public IEnumerable<string> AdditionalFilePathsToCloneDll { get; set; }
 
         private void ParseTargetDefinitions()
         {
@@ -446,23 +467,41 @@ eg. 'Transform-position-Vector3:Transform-rotation-Quaternion'";
 
         private static int RunAddEvents(AddEventsOptions options)
         {
-            if (!CreateCleanCopyFromBackup(options.TargetDllPath))
+            foreach (var targetPath in options.TargetDllPaths)
             {
-                System.Console.WriteLine($"Unable to {nameof(CreateCleanCopyFromBackup)}, exiting...");
-                return 1;
-            }
-
-            using (var assembly = AssemblyDefinition.ReadAssembly(options.TargetDllPath, new ReaderParameters { ReadWrite = true }))
-            {
-                _ilEventGenerator = new IlEventGenerator(assembly);
-                _ilEventManager = new IlEventHookManager(assembly);
-
-                foreach (var targetDefinition in options.TargetDefinitions)
+                System.Console.WriteLine($"Processing... {targetPath}");
+                
+                if (!CreateCleanCopyFromBackup(targetPath, out var backupPath))
                 {
-                    CreateEventAndWeaveCallAtSetterStart(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, targetDefinition.PropertyTypeName);
+                    System.Console.WriteLine($"Unable to {nameof(CreateCleanCopyFromBackup)}, exiting...");
+                    return 1;
                 }
 
-                assembly.Write();
+                using (var assembly = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters { ReadWrite = true }))
+                {
+                    _ilEventGenerator = new IlEventGenerator(assembly);
+                    _ilEventManager = new IlEventHookManager(assembly);
+
+                    foreach (var targetDefinition in options.TargetDefinitions)
+                    {
+                        CreateEventAndWeaveCallAtSetterStart(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, targetDefinition.PropertyTypeName);
+                    }
+
+                    assembly.Write();
+                }
+
+                System.Console.WriteLine($"Processed! {targetPath}\r\n\r\n");
+                
+                //if (options.AdditionalFilePathsToCloneDll.Any())
+                //{
+                //    foreach (var cloneAs in options.AdditionalFilePathsToCloneDll)
+                //    {
+                //        File.Copy(options.TargetDllPaths, cloneAs, true);
+                //        File.Copy(options.TargetDllPaths, backupPath, true);
+                //        System.Console.WriteLine($"Additional DLL clone created: {cloneAs}");
+                //    }
+                //}
+
             }
 
             EndWhenUserReady();
@@ -605,28 +644,31 @@ namespace {{Model.Namespace}}
         {
             var eventName = GenerateDefaultSetPropertyEventName(propName);
             var generatedEvent = _ilEventGenerator.GenerateEvent(propTypeName, eventName);
-            _ilEventManager.HookPropertySet(generatedEvent, typeName, propName);
+            var result = _ilEventManager.HookPropertySet(generatedEvent, typeName, propName);
+            if(!result.IsSuccess)
+                System.Console.WriteLine(result.ErrorMessage);
         }
 
 
-        private static bool CreateCleanCopyFromBackup(string dllPath)
+        private static bool CreateCleanCopyFromBackup(string dllPath, out string backupPath)
         {
+            backupPath = null;
             bool retry;
             do
             {
                 try
                 {
-                    var backup = $@"{dllPath}.backup";
-                    if (!File.Exists(backup))
+                    backupPath = CreateBackupFilePath(dllPath);
+                    if (!File.Exists(backupPath))
                     {
                         System.Console.WriteLine("Backup does not exist, creating");
-                        File.Copy(dllPath, backup);
-                        System.Console.WriteLine($"Backup created: '{backup}'");
+                        File.Copy(dllPath, backupPath);
+                        System.Console.WriteLine($"Backup created: '{backupPath}'");
                     }
 
                     if (File.Exists(dllPath)) File.Delete(dllPath);
 
-                    File.Copy(backup, dllPath);
+                    File.Copy(backupPath, dllPath);
 
                     retry = false;
                 }
@@ -649,6 +691,11 @@ namespace {{Model.Namespace}}
             } while (retry);
 
             return true;
+        }
+
+        private static string CreateBackupFilePath(string dllPath)
+        {
+            return $@"{dllPath}.backup";
         }
     }
 }

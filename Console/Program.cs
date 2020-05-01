@@ -343,7 +343,7 @@ namespace Console
 
         private const string TargetDefinitionHelpText = "Weaving target definitions in form: ObjectTypeName-PropertyName-PropertyTypeName, " +
                                                         "delimited with ';' for multiple values, eg. 'Transform-position-Vector3;Transform-rotation-Quaternion'";
-        public const string TargetDllPathHelpText = "Location of DLL that will be rewritten, multiple paths delimited with ;'";
+        public const string TargetDllPathHelpText = "Location of DLL that will be weaved, multiple paths delimited with ;'";
 
         private IEnumerable<string> _targetDefinitionsRaw;
 
@@ -386,6 +386,9 @@ namespace Console
     [Verb("revert-to-original", HelpText = "Revert to original library.")]
     class RevertToOriginalOptions
     {
+        [Option('t', "target-dll-paths", Separator = AddEventsOptions.MultipleDelimiter, Required = true, HelpText = AddEventsOptions.TargetDllPathHelpText)]
+        public IEnumerable<string> TargetDllPaths { get; set; }
+
     }
 
     [Verb("list-existing", HelpText = "Shows existing auto generated events")]
@@ -471,7 +474,7 @@ namespace Console
             {
                 System.Console.WriteLine($"Processing... {targetPath}");
                 
-                if (!CreateCleanCopyFromBackup(targetPath, out var backupPath))
+                if (!CreateCleanCopyFromBackup(targetPath))
                 {
                     System.Console.WriteLine($"Unable to {nameof(CreateCleanCopyFromBackup)}, exiting...");
                     return 1;
@@ -491,17 +494,6 @@ namespace Console
                 }
 
                 System.Console.WriteLine($"Processed! {targetPath}\r\n\r\n");
-                
-                //if (options.AdditionalFilePathsToCloneDll.Any())
-                //{
-                //    foreach (var cloneAs in options.AdditionalFilePathsToCloneDll)
-                //    {
-                //        File.Copy(options.TargetDllPaths, cloneAs, true);
-                //        File.Copy(options.TargetDllPaths, backupPath, true);
-                //        System.Console.WriteLine($"Additional DLL clone created: {cloneAs}");
-                //    }
-                //}
-
             }
 
             EndWhenUserReady();
@@ -516,6 +508,16 @@ namespace Console
 
         private static int RunRevertToOriginal(RevertToOriginalOptions options)
         {
+            foreach (var targetPath in options.TargetDllPaths)
+            {
+                System.Console.WriteLine($"Processing... {targetPath}");
+                
+                RevertToBackup(targetPath);
+                
+                System.Console.WriteLine($"Processed! {targetPath}\r\n\r\n");
+            }
+
+            EndWhenUserReady();
             return 0;
         }
 
@@ -649,32 +651,57 @@ namespace {{Model.Namespace}}
                 System.Console.WriteLine(result.ErrorMessage);
         }
 
-
-        private static bool CreateCleanCopyFromBackup(string dllPath, out string backupPath)
+        private static bool RevertToBackup(string dllPath)
         {
-            backupPath = null;
+            return ExecuteWithOptionalRetry(() =>
+            {
+                var backupPath = CreateBackupFilePath(dllPath);
+                if (!File.Exists(backupPath))
+                {
+                    System.Console.WriteLine("Backup does not exist, unable to revert!");
+                    return;
+                }
+
+                if (File.Exists(dllPath)) File.Delete(dllPath);
+
+                File.Move(backupPath, dllPath);
+                System.Console.WriteLine("Backup restored");
+            });
+        }
+
+
+        private static bool CreateCleanCopyFromBackup(string dllPath)
+        {
+            return ExecuteWithOptionalRetry(() =>
+            {
+                var backupPath = CreateBackupFilePath(dllPath);
+                if (!File.Exists(backupPath))
+                {
+                    System.Console.WriteLine("Backup does not exist, creating");
+                    File.Copy(dllPath, backupPath);
+                    System.Console.WriteLine($"Backup created: '{backupPath}'");
+                }
+
+                if (File.Exists(dllPath)) File.Delete(dllPath);
+
+                File.Copy(backupPath, dllPath);
+            });
+        }
+
+        private static bool ExecuteWithOptionalRetry(Action execute)
+        {
             bool retry;
             do
             {
                 try
                 {
-                    backupPath = CreateBackupFilePath(dllPath);
-                    if (!File.Exists(backupPath))
-                    {
-                        System.Console.WriteLine("Backup does not exist, creating");
-                        File.Copy(dllPath, backupPath);
-                        System.Console.WriteLine($"Backup created: '{backupPath}'");
-                    }
-
-                    if (File.Exists(dllPath)) File.Delete(dllPath);
-
-                    File.Copy(backupPath, dllPath);
-
+                    execute();
                     retry = false;
                 }
                 catch (UnauthorizedAccessException e)
                 {
-                    System.Console.WriteLine("Unable to modify dll, make sure you run the application as administrator and close all applications that use library.");
+                    System.Console.WriteLine(
+                        "Unable to modify dll, make sure you run the application as administrator and close all applications that use library.");
 
                     System.Console.Write("\r\nRetry? [y]es, any other key for no\t: ");
                     var key = System.Console.ReadKey().Key;

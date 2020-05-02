@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -13,6 +14,8 @@ using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using Scriban;
 using Scriban.Runtime;
+using FieldAttributes = Mono.Cecil.FieldAttributes;
+using MethodAttributes = Mono.Cecil.MethodAttributes;
 
 namespace Console
 {
@@ -342,7 +345,7 @@ namespace Console
         public const char MultipleDelimiter = ';';
 
         private const string TargetDefinitionHelpText = "Weaving target definitions in form: ObjectTypeName-PropertyName-PropertyTypeName, " +
-                                                        "delimited with ';' for multiple values, eg. 'Transform-position-Vector3;Transform-rotation-Quaternion'";
+                                                        "delimited with ';' for multiple values, eg. 'Transform-position;Transform-rotation'";
         public const string TargetDllPathHelpText = "Location of DLL that will be weaved, multiple paths delimited with ;'";
 
         private IEnumerable<string> _targetDefinitionsRaw;
@@ -366,10 +369,6 @@ namespace Console
 
         public List<TargetDefinition> TargetDefinitions { get; set; }
 
-
-        //[Option("additional-file-paths-to-clone-dll", Required = false, Separator = ':', HelpText = "Resulting DLL might need to be copied to other places that should use it, delimited with ':'")]
-        //public IEnumerable<string> AdditionalFilePathsToCloneDll { get; set; }
-
         private void ParseTargetDefinitions()
         {
             TargetDefinitions = TargetDefinitionsRaw.Select(r =>
@@ -378,7 +377,7 @@ namespace Console
                 if (splitted.Length != 3)
                     throw new Exception($"Unable to parse {nameof(TargetDefinitionsRaw)}, make sure values are in correct format.\r\n{TargetDefinitionHelpText}");
 
-                return new TargetDefinition(splitted[0], splitted[1], splitted[2]);
+                return new TargetDefinition(splitted[0], splitted[1]);
             }).ToList();
         }
     }
@@ -428,13 +427,11 @@ namespace Console
     {
         public string ObjectTypeName { get; set; }
         public string PropertyName { get; set; }
-        public string PropertyTypeName { get; set; }
 
-        public TargetDefinition(string objectTypeName, string propertyName, string propertyTypeName)
+        public TargetDefinition(string objectTypeName, string propertyName)
         {
             ObjectTypeName = objectTypeName;
             PropertyName = propertyName;
-            PropertyTypeName = propertyTypeName;
         }
     }
 
@@ -487,7 +484,8 @@ namespace Console
 
                     foreach (var targetDefinition in options.TargetDefinitions)
                     {
-                        CreateEventAndWeaveCallAtSetterStart(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, targetDefinition.PropertyTypeName);
+                        var propertyTypeName = ResolveSetterValueArgType(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, assembly.MainModule);
+                        CreateEventAndWeaveCallAtSetterStart(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, propertyTypeName.Name);
                     }
 
                     assembly.Write();
@@ -649,6 +647,14 @@ namespace {{Model.Namespace}}
             var result = _ilEventManager.HookPropertySet(generatedEvent, typeName, propName);
             if(!result.IsSuccess)
                 System.Console.WriteLine(result.ErrorMessage);
+        }
+
+        private static TypeReference ResolveSetterValueArgType(string typeName, string propertyName, ModuleDefinition module)
+        {
+            var type = module.Types.Single(t => t.Name == typeName);
+            var setMethod = type.Methods.Single(m => m.Name == $"set_{propertyName}");
+
+            return setMethod.Parameters.First().ParameterType;
         }
 
         private static bool RevertToBackup(string dllPath)

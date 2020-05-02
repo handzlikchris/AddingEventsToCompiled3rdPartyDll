@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29318.209
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MissingUnityEvents.Plugin", "MissingUnityEvents.Plugin\MissingUnityEvents.Plugin.csproj", "{106FC42A-3A5B-4053-8012-541FC6D28C65}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Console", "Console\Console.csproj", "{95F02750-C0AC-4473-BE1B-A2FF5305E26D}"
 EndProject
 Global
@@ -13,10 +11,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{106FC42A-3A5B-4053-8012-541FC6D28C65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{106FC42A-3A5B-4053-8012-541FC6D28C65}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{106FC42A-3A5B-4053-8012-541FC6D28C65}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{106FC42A-3A5B-4053-8012-541FC6D28C65}.Release|Any CPU.Build.0 = Release|Any CPU
 		{95F02750-C0AC-4473-BE1B-A2FF5305E26D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{95F02750-C0AC-4473-BE1B-A2FF5305E26D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95F02750-C0AC-4473-BE1B-A2FF5305E26D}.Release|Any CPU.ActiveCfg = Release|Any CPU

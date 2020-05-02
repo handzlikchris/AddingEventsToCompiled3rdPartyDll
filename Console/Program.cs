@@ -477,6 +477,8 @@ namespace Console
                     return 1;
                 }
 
+                CreateRevertToBackupFallbackScript(options);
+
                 using (var assembly = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters { ReadWrite = true }))
                 {
                     _ilEventGenerator = new IlEventGenerator(assembly);
@@ -496,6 +498,12 @@ namespace Console
 
             EndWhenUserReady();
             return 0;
+        }
+
+        private static void CreateRevertToBackupFallbackScript(AddEventsOptions options)
+        {
+            var revertToToBackupCommand = $"{System.AppDomain.CurrentDomain.FriendlyName} revert-to-original -t \"{string.Join(AddEventsOptions.MultipleDelimiter.ToString(), options.TargetDllPaths)}\"";
+            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "revert-last-weaving.bat", revertToToBackupCommand);
         }
 
         private static void EndWhenUserReady()

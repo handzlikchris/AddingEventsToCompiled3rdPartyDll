@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("MissingUnityEvents.Plugin")]
+[assembly: AssemblyTitle("EventILWeaver.Weaver")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("MissingUnityEvents.Plugin")]
+[assembly: AssemblyProduct("EventILWeaver.Weaver")]
 [assembly: AssemblyCopyright("Copyright ©  2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("106fc42a-3a5b-4053-8012-541fc6d28c65")]
+[assembly: Guid("82c64169-eb06-4e57-8a4d-74396e34ab39")]
 
 // Version information for an assembly consists of the following four values:
 //

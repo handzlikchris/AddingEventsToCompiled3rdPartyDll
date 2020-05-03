@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29318.209
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Console", "Console\Console.csproj", "{95F02750-C0AC-4473-BE1B-A2FF5305E26D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventILWeaver.Console", "EventILWeaver.Console\EventILWeaver.Console.csproj", "{95F02750-C0AC-4473-BE1B-A2FF5305E26D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventILWeaver.Weaver", "EventILWeaver.Weaver\EventILWeaver.Weaver.csproj", "{82C64169-EB06-4E57-8A4D-74396E34AB39}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{95F02750-C0AC-4473-BE1B-A2FF5305E26D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95F02750-C0AC-4473-BE1B-A2FF5305E26D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{95F02750-C0AC-4473-BE1B-A2FF5305E26D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82C64169-EB06-4E57-8A4D-74396E34AB39}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82C64169-EB06-4E57-8A4D-74396E34AB39}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82C64169-EB06-4E57-8A4D-74396E34AB39}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82C64169-EB06-4E57-8A4D-74396E34AB39}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

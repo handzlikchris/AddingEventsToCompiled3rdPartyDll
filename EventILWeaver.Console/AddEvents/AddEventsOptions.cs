@@ -9,11 +9,13 @@ namespace EventILWeaver.Console.AddEvents
     {
         public string ObjectTypeName { get; set; }
         public string PropertyName { get; set; }
+        public string DllName { get; set; }
 
-        public TargetDefinition(string objectTypeName, string propertyName)
+        public TargetDefinition(string objectTypeName, string propertyName, string dllName)
         {
             ObjectTypeName = objectTypeName;
             PropertyName = propertyName;
+            DllName = dllName;
         }
     }
 
@@ -23,7 +25,9 @@ namespace EventILWeaver.Console.AddEvents
         public const char MultipleDelimiter = ';';
 
         private const string TargetDefinitionHelpText = "Weaving target definitions in form: ObjectTypeName-PropertyName-PropertyTypeName, " +
-                                                        "delimited with ';' for multiple values, eg. 'Transform-position;Transform-rotation'";
+                                                        "delimited with ';' for multiple values, eg. 'Transform-position;Transform-rotation'. " +
+                                                        "If you specified multiple dll types you need to provide 3rd parameter to indicate which dll target applies to " +
+                                                        "eg. 'Transform-position-UnityEngine.CoreModule;BoxCollider-size-UnityEngine.PhysicsModule";
         public const string TargetDllPathHelpText = "Location of DLL that will be weaved, multiple paths delimited with ;'";
 
         private IEnumerable<string> _targetDefinitionsRaw;
@@ -52,10 +56,10 @@ namespace EventILWeaver.Console.AddEvents
             TargetDefinitions = TargetDefinitionsRaw.Select(r =>
             {
                 var splitted = r.Split(new[] {"-"}, StringSplitOptions.RemoveEmptyEntries);
-                if (splitted.Length != 2)
+                if (splitted.Length < 2 || splitted.Length > 3)
                     throw new Exception($"Unable to parse {nameof(TargetDefinitionsRaw)}, make sure values are in correct format.\r\n{TargetDefinitionHelpText}");
 
-                return new TargetDefinition(splitted[0], splitted[1]);
+                return new TargetDefinition(splitted[0], splitted[1], splitted.Length == 3 ? splitted[2] : string.Empty);
             }).ToList();
         }
     }

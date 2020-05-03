@@ -31,7 +31,9 @@ namespace EventILWeaver.Console.AddEvents
                     _ilEventGenerator = new IlEventGenerator(assembly);
                     _ilEventManager = new IlEventHookManager(assembly);
 
-                    foreach (var targetDefinition in options.TargetDefinitions)
+                    var assemblyName = assembly.FullName.Split(new[] {","}, StringSplitOptions.RemoveEmptyEntries)[0];
+                    var targetDefinitionsForAssembly = options.TargetDefinitions.Where(t => string.IsNullOrEmpty(t.DllName) || t.DllName == assemblyName).ToList();
+                    foreach (var targetDefinition in targetDefinitionsForAssembly)
                     {
                         var propertyType = ResolveSetterValueArgType(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, assembly.MainModule);
                         CreateEventAndWeaveCallAtSetterStart(targetDefinition.ObjectTypeName, targetDefinition.PropertyName, propertyType);

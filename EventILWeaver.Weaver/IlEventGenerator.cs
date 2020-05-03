@@ -43,7 +43,7 @@ namespace EventILWeaver.Weaver
         public GenerateEventResult GenerateEvent(TypeReference eventHandlerGenericParamType, string eventName)
         {
             var handlerType = _module.ImportReference(typeof(EventHandler<>));
-            var handlerGenericParamType = _module.ImportReference(eventHandlerGenericParamType.Resolve());
+            var handlerGenericParamType = _module.ImportReference(eventHandlerGenericParamType);
 
             var genericHandlerType = new GenericInstanceType(handlerType);
             genericHandlerType.GenericArguments.Add(handlerGenericParamType);

@@ -8,8 +8,8 @@ namespace EventILWeaver.Console.GenerateHelperCode
                                              "in case when DLL is not weaved with events it'll not fail to build but fallback to specific code instead, eg. logging.")]
     public class GenerateHelperCodeOptions
     {
-        [Option('t', "target-dll-path", Required = true, HelpText = AddEventsOptions.TargetDllPathHelpText)]
-        public string TargetDllPath { get; set; }
+        [Option('t', "target-dll-paths", Separator = AddEventsOptions.MultipleDelimiter, Required = true, HelpText = AddEventsOptions.TargetDllPathHelpText)]
+        public IEnumerable<string> TargetDllPaths { get; set; }
 
         [Option('o', "output-file", Required = true, HelpText = "Output file where generated code will be saved")]
         public string OutputFile { get; set; }

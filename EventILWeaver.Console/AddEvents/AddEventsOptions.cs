@@ -24,7 +24,7 @@ namespace EventILWeaver.Console.AddEvents
     {
         public const char MultipleDelimiter = ';';
 
-        private const string TargetDefinitionHelpText = "Weaving target definitions in form: ObjectTypeName-PropertyName-PropertyTypeName, " +
+        private const string TargetDefinitionHelpText = "Weaving target definitions in form: ObjectTypeName-PropertyName, " +
                                                         "delimited with ';' for multiple values, eg. 'Transform-position;Transform-rotation'. " +
                                                         "If you specified multiple dll types you need to provide 3rd parameter to indicate which dll target applies to " +
                                                         "eg. 'Transform-position-UnityEngine.CoreModule;BoxCollider-size-UnityEngine.PhysicsModule";
